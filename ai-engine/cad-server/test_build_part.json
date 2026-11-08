@@ -1,0 +1,32 @@
+{
+  "features": [
+    {
+      "id": "ring",
+      "op": "pad",
+      "zOffset": 0,
+      "depth": 8,
+      "loops": [
+        {"kind": "circle", "center": [0, 0], "r": 25},
+        {"kind": "circle", "center": [0, 0], "r": 21}
+      ]
+    },
+    {
+      "id": "u_boss",
+      "op": "pad",
+      "zOffset": 8,
+      "depth": 19,
+      "loops": [
+        {"kind": "polygon", "points": [[-6,-6],[6,-6],[6,6],[4,6],[4,-2],[-4,-2],[-4,6],[-6,6]]}
+      ]
+    },
+    {
+      "id": "test_pocket",
+      "op": "pocket",
+      "zOffset": 27,
+      "depth": -6,
+      "loops": [
+        {"kind": "circle", "center": [5, -4], "r": 2}
+      ]
+    }
+  ]
+}

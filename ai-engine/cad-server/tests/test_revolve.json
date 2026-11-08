@@ -1,0 +1,7 @@
+{
+  "features": [
+    {"id": "f1", "op": "revolve", "zOffset": 0, "axis": "X", "angle": 360,
+     "loops": [{"kind": "polygon", "points": [[10,0],[20,0],[20,30],[10,30]]}]}
+  ],
+  "modifiers": []
+}

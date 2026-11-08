@@ -1,0 +1,9 @@
+{
+  "features": [
+    {"id": "f1", "op": "pad", "zOffset": 0, "depth": 10,
+     "loops": [{"kind": "polygon", "points": [[10,0],[30,0],[30,20],[10,20]]}]}
+  ],
+  "modifiers": [
+    {"id": "m1", "op": "mirror_body", "plane": "YZ"}
+  ]
+}

@@ -1,0 +1,9 @@
+{
+  "features": [
+    {"id": "f1", "op": "pad", "zOffset": 0, "depth": 20,
+     "loops": [{"kind": "polygon", "points": [[0,0],[40,0],[40,40],[0,40]]}]}
+  ],
+  "modifiers": [
+    {"id": "m1", "op": "shell", "thickness": 2}
+  ]
+}

@@ -1,0 +1,32 @@
+# ai-engine/cad-server's real dependencies — pip install -r requirements.txt
+# inside a venv before running cad_server.py. build123d pulls in Open
+# Cascade itself (via OCP), so this one install gets you the real solid
+# modeling kernel, not a mock.
+# Needs Python 3.12 or newer: numpy 2.5.x (pinned below) has no wheels for
+# 3.11. Verified on Windows with Python 3.14 (build123d/OCP publish wheels).
+fastapi==0.141.1
+uvicorn==0.52.4
+pydantic==2.13.5
+build123d==0.11.1
+numpy==2.5.3
+scipy==1.18.1
+
+# Optional — only needed for the Image-to-CAD sketch tracer
+# (image_to_sketch.py). cad_server.py degrades gracefully without it:
+# /sketch_from_image reports the real import error instead of failing to
+# start.
+opencv-python-headless==5.0.0.93
+requests==2.34.2
+
+# Optional — Image to 3D. Heavy (PyTorch), so it is kept out of this file:
+#   TripoSR (fast draft):   pip install -r ai-engine/cad-server/requirements-triposr.txt
+#   Hunyuan3D 2.1 (best):   run ai-engine/cad-server/setup_hunyuan3d.bat (own Python 3.10 environment)
+# The backend starts without either; the Image to 3D window explains what is missing.
+
+# Test-only — backend tests: cd ai-engine/cad-server && python -m pytest tests -q
+pytest==9.1.1
+httpx
+
+# Image to 3D (image_to_3d.py): reads and writes the pictures. Needed by both engines.
+# The Pixal3D engine itself runs in the separate PIXAL-3D launcher (Pinokio); nothing else to install here.
+Pillow>=11.3

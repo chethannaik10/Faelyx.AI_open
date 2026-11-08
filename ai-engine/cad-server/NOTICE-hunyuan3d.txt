@@ -1,0 +1,34 @@
+Tencent Hunyuan 3D 2.1 is licensed under the Tencent Hunyuan 3D 2.1 Community License Agreement, Copyright © 2025 Tencent. All Rights Reserved. The trademark rights of "Tencent Hunyuan" are owned by Tencent or its affiliate.
+
+Powered by Tencent Hunyuan.
+
+faelyx.AI is not affiliated with, associated with, sponsoring or endorsing Tencent. The Hunyuan3D 2.1 engine in Image to 3D is provided by faelyx.AI; Tencent has no part in it.
+
+----------------------------------------------------------------------------------------------------
+What this means for anyone using the Hunyuan3D 2.1 engine of faelyx.AI Image to 3D
+(a summary — the licence text is authoritative: https://github.com/Tencent-Hunyuan/Hunyuan3D-2.1/blob/main/LICENSE
+and a copy sits in the Hunyuan3D-2.1 folder you cloned)
+
+1. Territory. The licence does not apply in, and the Hunyuan3D 2.1 works and their output must not be used in,
+   the European Union, the United Kingdom or South Korea.
+2. Scale. If the products or services you make available had more than 1 million monthly active users in the month
+   before the 2.1 release, you must obtain a licence from Tencent (hunyuan3d@tencent.com) before using it.
+3. No training. The Hunyuan3D 2.1 works and their output must not be used to improve any other AI model.
+4. Acceptable Use Policy (Exhibit A of the licence) applies, including: no unlawful use, no harm to others, no deceptive or
+   defamatory content, machine-generated content must be identified as such when published, no military use, no
+   automated high-stakes decisions, no unlicensed professional practice.
+5. Output. Tencent claims no rights in what you generate; you are responsible for it and for how it is used.
+6. Distribution. If you pass Hunyuan3D 2.1 on to others you must give them a copy of the licence, mark modified files, keep
+   this notice, and (for products and services built on it) say that they are "Powered by Tencent Hunyuan", name the actual
+   provider, and state that Tencent is not affiliated with them. These use restrictions must be included, as enforceable
+   terms, in any agreement that governs your users' use of it.
+7. No warranty. Provided "as is".
+
+Files that carry this notice: hunyuan3d.py, hunyuan3d_worker/worker.py, setup_hunyuan3d.py (faelyx.AI glue code that calls
+Hunyuan3D 2.1; the Hunyuan3D source itself is not copied into this project — it stays in your own clone of
+https://github.com/Tencent-Hunyuan/Hunyuan3D-2.1).
+
+Other components the engine installs or downloads keep their own licences, among them: PyTorch (BSD-3), diffusers and
+transformers (Apache-2.0), DINOv2 (`facebook/dinov2-giant`, Apache-2.0), components of the paint model that derive from Stable Diffusion 2.1
+(CreativeML Open RAIL++-M, where they apply), Real-ESRGAN (BSD-3) and basicsr (Apache-2.0), rembg (MIT), trimesh (MIT), pymeshlab (GPL-3.0 — it runs
+only inside the separate Hunyuan3D environment and is not linked into the CAD server), Blender `bpy` (GPL-3.0, same).

@@ -1,0 +1,9 @@
+{
+  "features": [
+    {"id": "f1", "op": "pad", "zOffset": 0, "depth": 10,
+     "loops": [{"kind": "polygon", "points": [[0,0],[40,0],[40,40],[0,40]]}]}
+  ],
+  "modifiers": [
+    {"id": "m1", "op": "chamfer", "radius": 2, "edgeFilter": "vertical"}
+  ]
+}

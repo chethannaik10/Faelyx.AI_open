@@ -1,0 +1,9 @@
+{
+  "features": [
+    {"id": "f1", "op": "pad", "zOffset": 0, "depth": 5,
+     "loops": [{"kind": "circle", "center": [0,0], "r": 5}]}
+  ],
+  "modifiers": [
+    {"id": "m1", "op": "linear_pattern_body", "axis": "X", "spacing": 20, "count": 4}
+  ]
+}

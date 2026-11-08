@@ -1,0 +1,28 @@
+# faelyx.AI Image to 3D (TripoSR) — extra packages for the CAD server.
+# The CAD server runs without them; Image to 3D then says what is missing.
+#
+# 1) Install PyTorch FIRST, built for your hardware — https://pytorch.org/get-started/locally/
+#    NVIDIA GPU (recommended, ~6 GB VRAM):  pip install torch --index-url https://download.pytorch.org/whl/cu126
+#    No GPU (works, but takes minutes):      pip install torch
+# 2) Then:                                   pip install -r requirements-triposr.txt
+#
+# Run both inside the same environment that runs cad_server.py (see activate_venv.bat).
+omegaconf==2.3.0
+einops>=0.7
+transformers>=4.35,<5
+trimesh>=4.0.5
+rembg
+onnxruntime
+imageio
+huggingface-hub
+Pillow
+scikit-image
+scipy
+
+# Optional but recommended: sharp mesh reduction. Without it the face cap (Mesh detail) falls back to grid clustering, which rounds off small detail.
+# fast-simplification
+# Optional: GPU marching cubes. Needs a C++ / CUDA toolchain; without it faelyx.AI uses scikit-image (CPU).
+# torchmcubes @ git+https://github.com/tatsy/torchmcubes.git
+# Optional: only for tsr/bake_texture.py (texture baking, not used by the app).
+# xatlas==0.0.9
+# moderngl==5.10.0
