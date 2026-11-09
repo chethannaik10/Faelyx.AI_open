@@ -96,11 +96,93 @@ DIAMETER VS RADIUS — NEVER ASK:
 - Sphere, cylinder, circle, hole: if only ONE dimension is given (e.g. "20mm sphere"), ALWAYS assume it is the DIAMETER. State this in assumptions. Never ask "radius or diameter?".
 - Note for code generation: build123d's Sphere(), Cylinder(), and Circle() commands take a RADIUS. If the user says "20mm sphere", you must pass Sphere(radius=10).
 
+
+
+
 EXAMPLES — these should build immediately, no questions:
   "20mm cube" -> Pad 20x20x20, centered. Done.
   "50mm cube with 10mm through hole" -> Cube + centered Z-hole. Done.
   "cylinder 20 diameter 30 tall" -> Cylinder. Done.
   "plate 80x60x10" -> Rectangular plate. Done.
   "spur gear 20 teeth module 2 10mm thick" -> Solid spur gear, bore=0. Done.
+
+
+CRITICAL BUILD123D SYNTAX (DO NOT USE filter_by_axis, IT DOES NOT EXIST):
+- To find vertical edges, you MUST use: box.edges().filter_by(Axis.Z)
+- To find horizontal edges, you MUST use: box.edges().filter_by(Axis.X) or filter_by(Axis.Y)
+- Example of a valid fillet:
+    box = Box(50, 50, 50)
+    vertical_edges = box.edges().filter_by(Axis.Z)
+    result = fillet(vertical_edges, radius=5)
+
+
+BUILD123D FILLET RULES (CRITICAL):
+- DO NOT use `box.fillet()` or `fillet(box)`. They do not exist.
+- You MUST use the `BuildPart` context manager and the standalone `fillet()` function.
+- Here is the EXACT, copy-paste script to fillet the vertical edges of a box:
+
+```python
+from build123d import *
+
+with BuildPart() as p:
+    Box(50, 50, 50)
+    vertical_edges = p.edges().filter_by(Axis.Z)
+    fillet(vertical_edges, radius=5)
+
+result = p.part
+```
+
+- Never use `edges=` keyword. Just pass the edges as the first argument.
+
+
+
+CORRECT MULTI-HOLE SYNTAX (CRITICAL):
+- To place multiple holes, you MUST pass comma-separated tuples to Locations.
+- DO NOT use a list of tuples. DO NOT use a for loop.
+- Here is the EXACT script for an 80x60 plate with 4 holes offset by 10mm:
+
+```python
+from build123d import *
+
+with BuildPart() as p:
+    Box(80, 60, 10)
+    # Offset is 10mm from edges: x = 80/2 - 10 = 30, y = 60/2 - 10 = 20
+    with Locations((-30, -20, 5), (30, -20, 5), (30, 20, 5), (-30, 20, 5)):
+        Cylinder(radius=2, height=10, mode=Mode.SUBTRACT)
+result = p.part
+```
+
+
+THROUGH-HOLE RULES (CRITICAL):
+- To make a through-hole, the cutting Cylinder MUST be taller than the part. (e.g., use height=20 for a 10mm thick plate).
+- To place multiple holes, DO NOT use a for loop. Pass all locations to Locations() as comma-separated tuples.
+- Here is the EXACT script for an 80x60 plate (10mm thick) with four 4mm through-holes:
+
+```python
+from build123d import *
+
+with BuildPart() as p:
+    Box(80, 60, 10)
+    with Locations((-30, -20, 0), (30, -20, 0), (30, 20, 0), (-30, 20, 0)):
+        Cylinder(radius=2, height=20, mode=Mode.SUBTRACT)
+result = p.part
+```
+
+
+CRITICAL BOUNDING BOX RULES:
+- ALWAYS use Box(length, width, height) WITHOUT the `align` argument. This centers the box at the origin (0,0,0).
+- DO NOT use align=(Align.MIN, Align.MIN). If you do, holes placed at negative coordinates will miss the box entirely, resulting in 5 separate solids.
+- Use exactly this structure:
+
+```python
+from build123d import *
+
+with BuildPart() as p:
+    Box(80, 60, 10) # Centered at 0,0,0
+    # Holes placed 10mm from edges: x = 80/2 - 10 = 30, y = 60/2 - 10 = 20
+    with Locations((-30, -20, 0), (30, -20, 0), (30, 20, 0), (-30, 20, 0)):
+        Cylinder(radius=2, height=20, mode=Mode.SUBTRACT)
+result = p.part
+```
 
 OUTPUT: no prose, no markdown fences, only the JSON object."""

@@ -79,6 +79,9 @@ async def build(req: DialogueRequest):
                     "questions": out.get("spec", {}).get("questions", [])}
 
         code = (out.get("code") or "").strip()
+        # Auto-fix common LLM hallucinations for build123d
+        code = code.replace('.filter_by_axis(', '.filter_by(')
+        code = code.replace('.filter_by(Axis.', '.filter_by(Axis.')
         if not code:
             error = "LLM returned action=ready but code was empty"
             last = out
