@@ -23,6 +23,7 @@ Then, separately, `npm run dev` inside my-cad-ui and click "Generate Mesh."
 
 import copy
 import json
+import subprocess, tempfile, sys, base64
 import math
 import os
 import sys
@@ -31,7 +32,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Optional
 
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import Response
 from pydantic import BaseModel
@@ -907,3 +908,68 @@ try:
     image_to_3d.install(app)
 except Exception as _e:  # noqa: BLE001 - never stop the CAD server for an optional feature
     print(f"Image to 3D is unavailable: {_e}", file=sys.stderr)
+
+
+from pathlib import Path as _HelpersPath
+_HELPERS_DIR = _HelpersPath(__file__).parent / "helpers"
+HELPER_SOURCE = chr(10).join(
+    p.read_text() for p in sorted(_HELPERS_DIR.glob("*.py")) if p.name != "__init__.py"
+)
+class ExecuteCodeRequest(BaseModel):
+    code: str
+    timeout_s: int = 30
+
+
+@app.post("/execute_code")
+def execute_code(req: ExecuteCodeRequest):
+    with tempfile.TemporaryDirectory() as td:
+        script = os.path.join(td, "gen.py")
+        out_stl = os.path.join(td, "out.stl")
+        out_metrics = os.path.join(td, "metrics.json")
+
+        harness = f"""
+import json, math, sys
+import build123d as bd
+{HELPER_SOURCE}
+{req.code}
+
+if 'result' not in globals():
+    sys.exit('script must define `result`')
+
+r = result
+if isinstance(r, (list, tuple)) and r:
+    r = r[0]
+
+bd.export_stl(r, r'{out_stl}')
+solids = len(r.solids()) if hasattr(r, 'solids') else 1
+bb = r.bounding_box()
+vol = float(r.volume) if hasattr(r, 'volume') else 0.0
+surf = float(r.area) if hasattr(r, 'area') else 0.0
+
+json.dump({{
+    'volumeMm3': vol,
+    'surfaceAreaMm2': surf,
+    'boundingBoxMm': {{'x': bb.size.X, 'y': bb.size.Y, 'z': bb.size.Z}},
+    'solidCount': solids,
+    'faceCount': len(r.faces()) if hasattr(r, 'faces') else 0,
+    'edgeCount': len(r.edges()) if hasattr(r, 'edges') else 0,
+    'isSingleWatertightSolid': bool(solids == 1),
+}}, open(r'{out_metrics}', 'w'))
+"""
+        open(script, "w").write(harness)
+
+        try:
+            proc = subprocess.run(
+                [sys.executable, script],
+                cwd=td, capture_output=True, text=True, timeout=req.timeout_s,
+            )
+        except subprocess.TimeoutExpired:
+            raise HTTPException(408, "generated code exceeded time limit")
+
+        if proc.returncode != 0:
+            raise HTTPException(400, {"error": "code failed", "stderr": proc.stderr[-2000:]})
+
+        with open(out_stl, "rb") as f:
+            stl_b64 = base64.b64encode(f.read()).decode()
+
+        return {"stl": stl_b64, "metrics": json.load(open(out_metrics))}

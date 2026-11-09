@@ -21,7 +21,11 @@ type InteractionMode = 'select' | 'orbit' | 'pan' | 'zoom';
 function buttonsFor(mode: InteractionMode, scheme: NavSettings['scheme']) {
   const def = NAV_SCHEMES[scheme];
   // 'select': a plain click picks, no camera move. A select-only scheme (Universal) never gives the left button a camera action in any mode.
-  const left = def.leftSelectOnly ? undefined : mode === 'orbit' ? THREE.MOUSE.ROTATE : mode === 'pan' ? THREE.MOUSE.PAN : mode === 'zoom' ? THREE.MOUSE.DOLLY : undefined;
+  // Force left button to the selected tool, even in CATIA/Universal schemes
+  const left = mode === 'orbit' ? THREE.MOUSE.ROTATE 
+             : mode === 'pan' ? THREE.MOUSE.PAN 
+             : mode === 'zoom' ? THREE.MOUSE.DOLLY 
+             : (def.leftSelectOnly ? undefined : undefined);
   return { LEFT: left, MIDDLE: MOUSE_FOR[def.middle({ shift: false, ctrl: false })], RIGHT: def.right ? MOUSE_FOR[def.right] : undefined };
 }
 // OrbitControls swaps ROTATE and PAN whenever Ctrl/Cmd/Shift is held at
@@ -2227,6 +2231,7 @@ const StlViewport = forwardRef<StlViewportHandle, {
       interactionModeRef.current = mode;
       const controls = controlsRef.current;
       if (!controls) return;
+      controls.enabled = true; // Force unlock if TransformControls left it disabled
       // 'select' leaves the left button free for face picking (see the pointerup listener above).
       controls.mouseButtons = buttonsFor(mode, navRef.current.scheme);
     },

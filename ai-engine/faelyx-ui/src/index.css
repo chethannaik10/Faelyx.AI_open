@@ -1215,3 +1215,7 @@
 .modify-group-row{display:flex;gap:5px;align-items:center}
 .modify-group-row input{width:70px}
 .modify-group-row select{background:#15121f;border:1px solid #352b4c;color:#d6cfe8;font-size:9px;padding:3px}
+
+/* Faelyx AI panel — keep composer reachable when the panel is short */
+.assistant-content { overflow-y: auto !important; }
+.ai-spacer { flex: 0 0 8px !important; }

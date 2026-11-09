@@ -41,3 +41,7 @@ ai-engine/cad-server/triposr_models/
 
 # Image to 3D (Hunyuan3D 2.1): its Python 3.10 environment, model files, logs and working files (tens of GB)
 ai-engine/cad-server/hunyuan3d_runtime/
+.env
+.venv
+**/.env
+**/.venv

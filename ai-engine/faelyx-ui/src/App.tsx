@@ -300,7 +300,7 @@ const saveNamedViews = (views: NamedView[]) => { try { localStorage.setItem(NAME
 function ModelViewport({
   display, orientation, selectedFeature, stlData, generating, stlViewportRef, sketchLoops, previewFrame, previewLabel, referenceGeoms,
   partHidden, onToggleHidden, compassMode, onSetCompassMode, onQuickView, onRotateStep, onFitAll,
-  interactionMode, onSetInteractionMode, onSetRenderStyle, onInertia, onNormalView, sketchSupport, onSketchOnFace, onClearSketchSupport,
+  interactionMode, onSetInteractionMode, onEditSelected, onMeasureSelected, onSetRenderStyle, onInertia, onNormalView, sketchSupport, onSketchOnFace, onClearSketchSupport,
   faceButtonEnabled, faceButtonTitle, pickedFaceStatus, onFacePicked,
   keptSketches, showPlanes, onShowPlanes, showAxes, onShowAxes, onPlaneDoubleClick, onSketchDoubleClick, selectionCount, onReset, modelItemCount,
   edgePickEnabled, selectedEdges, onEdgePicked, onSketchPicked, onReferencePlaneDoubleClick, onBoxSelect, pickHint,
@@ -313,7 +313,7 @@ function ModelViewport({
   partHidden: boolean; onToggleHidden: () => void;
   compassMode: CompassMode | null; onSetCompassMode: (mode: CompassMode | null) => void;
   onQuickView: (view: QuickView, label: string) => void; onRotateStep: (degrees: number) => void; onFitAll: () => void;
-  interactionMode: 'select' | 'orbit' | 'pan' | 'zoom'; onSetInteractionMode: (mode: 'select' | 'orbit' | 'pan' | 'zoom') => void;
+  interactionMode: 'select' | 'orbit' | 'pan' | 'zoom'; onSetInteractionMode: (mode: 'select' | 'orbit' | 'pan' | 'zoom') => void; onEditSelected?: (id: string) => void; onMeasureSelected?: () => void;
   onSetRenderStyle: (style: RenderStyle, label: string) => void;
   onInertia: (inertia: Inertia | null) => void; onNormalView: () => void;
   sketchSupport: SketchSupport | null; onSketchOnFace: () => void; onClearSketchSupport: () => void;
@@ -419,7 +419,7 @@ function ModelViewport({
       {pickedFaceStatus && pickedFaceStatus !== 'checking' && <div className={`model-label face-chip face-chip-${pickedFaceStatus}`} style={{ top: sketchSupport ? 40 : 12, left: 12 }}><ScanFace size={11} /> {faceButtonTitle}</div>}
       {sketchSupport && <div className="model-label" style={{ top: 12, left: 12 }}><Pencil size={11} /> Sketch support: picked face — the next sketch-based feature builds there <button className="viewport-text-action" onClick={onClearSketchSupport}>Use sketch plane</button></div>}
       {generating && <div className="model-label" style={{ top: '50%', left: '50%', transform: 'translate(-50%,-50%)' }}><Sparkles size={11} /> Generating with Open Cascade…</div>}
-      {selected && <div className="selection-toolbar"><b>{selectedFeature}</b><button><Pencil size={12} /> Edit</button><button><Ruler size={12} /> Measure</button><button onClick={onToggleHidden}>{partHidden ? <EyeOff size={12} /> : <Eye size={12} />} {partHidden ? 'Show' : 'Hide'}</button><button><Sparkles size={12} /> AI Analyze</button></div>}
+      {selected && <div className="selection-toolbar"><b>{selectedFeature}</b><button onClick={() => onEditSelected && onEditSelected(selectedFeature)}><Pencil size={12} /> Edit</button><button onClick={onMeasureSelected}><Ruler size={12} /> Measure</button><button onClick={onToggleHidden}>{partHidden ? <EyeOff size={12} /> : <Eye size={12} />} {partHidden ? 'Show' : 'Hide'}</button><button><Sparkles size={12} /> AI Analyze</button></div>}
       {stlData && partHidden && <div className="model-label" style={{ top: '50%', left: '50%', transform: 'translate(-50%,-50%)' }}><EyeOff size={12} /> Part hidden — Show it above or from the toolbar below.</div>}
     </div>
     {sectionOn && <SectionPanel cfg={sec} info={secInfo} hasPart={!!stlData} onCfg={setSec} onClose={() => onSectionOn(false)} onLook={() => stlViewportRef.current?.viewSection()} />}
@@ -2288,12 +2288,75 @@ function App() {
     window.alert("Importing STEP / IGES / STL files is coming soon — for now, open a project you've already saved in Faelyx AI.");
   };
 
-  const runAi = () => {
-    if (!aiInput.trim()) return;
-    setAiMessages((items) => [...items, aiInput.trim()]);
-    setAiInput(''); setProcessing(true); window.setTimeout(() => setProcessing(false), 1800);
+
+  
+    const handleEditSelected = (id: string) => {
+    if (id === 'Faelyx_Project') return;
+    if (typeof setInspectorTab === 'function') setInspectorTab('PROPERTIES');
+    
+    // Find the feature to check if it's a sketch
+    const feat = features.find((f) => f.name === id || f.id === id);
+    const isSketch = id.toLowerCase().includes('sketch') || (feat && (feat.op === 'sketch' || feat.op === 'Sketch' || feat.tool === 'Sketch'));
+
+    if (isSketch) {
+      if (typeof setEditingId === 'function') setEditingId(id);
+      if (typeof setEditingSketch === 'function' && feat) setEditingSketch(feat as any);
+      if (typeof goToWorkspace === 'function') goToWorkspace('Sketch & 2D');
+    } else {
+      if (typeof setEditingId === 'function') setEditingId(id);
+    }
   };
-  const upload = (event: ChangeEvent<HTMLInputElement>) => { if (event.target.files?.length) setUploadReady(true); };
+
+  const handleMeasureSelected = () => {
+    if (typeof setInspectorTab === 'function') setInspectorTab('PROPERTIES');
+    if (typeof setActiveTool === 'function') setActiveTool('Measure');
+  };
+
+const runAi = async () => {
+  if (!aiInput.trim() || processing) return;
+  const prompt = aiInput.trim();
+  setAiMessages((items) => [...items, prompt]);
+  setAiInput('');
+  setProcessing(true);
+  try {
+    const res = await fetch('http://127.0.0.1:8001/ai/build', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ prompt }),
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      const detail = data?.detail;
+      const msg = typeof detail === 'string'
+        ? detail
+        : (detail?.last_error ?? detail?.error ?? JSON.stringify(detail ?? data).slice(0, 200));
+      setAiMessages((items) => [...items, `__ai__ ⚠ Build failed: ${msg}`]);
+      console.error('[ai/build]', res.status, data);
+      return;
+    }
+    if (data.action === 'ask') {
+      const qs = (data.questions ?? []).join(' · ') || 'Could you provide more details?';
+      setAiMessages((items) => [...items, `__ai__ ❓ Need more info: ${qs}`]);
+      return;
+    }
+    if (data.action === 'ready' && data.stl) {
+      const bin = atob(data.stl);
+      const bytes = new Uint8Array(bin.length);
+      for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+      setStlData(bytes.buffer as ArrayBuffer);
+      const r = data.report;
+      setAiMessages((items) => [...items,
+        `__ai__ ✓ Built: ${data.spec?.summary ?? 'part'} — ${Math.round(r.volumeMm3).toLocaleString()} mm³, ` +
+        `bbox ${r.boundingBoxMm.x}×${r.boundingBoxMm.y}×${r.boundingBoxMm.z} mm, ` +
+        `watertight ${r.isSingleWatertightSolid}`
+      ]);
+    }
+  } catch (e: any) {
+    setAiMessages((items) => [...items, `__ai__ ⚠ Network error: ${e?.message ?? e}`]);
+  } finally {
+    setProcessing(false);
+  }
+};  const upload = (event: ChangeEvent<HTMLInputElement>) => { if (event.target.files?.length) setUploadReady(true); };
   // 3D Design viewport controls — thin wrappers that call the live
   // StlViewport instance's imperative handle and keep the toolbar's own
   // active/label state (orientation, display, compassMode, partHidden,
@@ -2492,11 +2555,11 @@ function App() {
       <div className={`col-resizer ${resizingCol === 'col1' ? 'col-resizer-active' : ''}`} onMouseDown={startColResize('col1')} aria-hidden="true" />
       <aside className="toolbox-panel"><PanelHeader eyebrow="COMMANDS · CATIA PART DESIGN" title="3D MODELING TOOLBOX" action={<IconButton icon={Search} label="Search tools" onClick={() => setSearchOpen(true)} />} /><div className="toolbox-scroll">{TOOL_GROUPS.map((section) => <section className="tool-section" key={section.label}><button className="section-toggle" onClick={() => setOpenSections((value) => ({ ...value, [section.label]: !value[section.label] }))}><span>{openSections[section.label] ? <ChevronDown size={12} /> : <ChevronRight size={12} />}{section.label}</span><small>{section.tools.filter((t) => t.kind !== 'unavailable').length}/{section.tools.length}</small></button>{openSections[section.label] && <div className="tool-list">{section.tools.map((tool) => <ToolButton key={tool.name} tool={tool} active={activeTool === tool.name} onClick={() => pickTool(tool.name)} />)}</div>}</section>)}</div></aside>
       <div className={`col-resizer ${resizingCol === 'col2' ? 'col-resizer-active' : ''}`} onMouseDown={startColResize('col2')} aria-hidden="true" />
-      <section className="canvas-panel"><ModelViewport sectionOn={sectionOn} onSectionOn={setSectionOn} display={display} orientation={orientation} selectedFeature={treeSelection === 'Faelyx_Project' ? 'None' : treeSelection} stlData={stlData} generating={generating} stlViewportRef={stlViewportRef} sketchLoops={sketchPreview} previewFrame={currentFrame} previewLabel={currentSupportLabel} referenceGeoms={referenceGeoms} partHidden={partHidden} onToggleHidden={handleToggleHidden} compassMode={compassMode} onSetCompassMode={handleSetCompassMode} onQuickView={handleQuickView} onRotateStep={handleRotateStep} onFitAll={handleFitAll} interactionMode={interactionMode} onSetInteractionMode={handleSetInteractionMode} onSetRenderStyle={handleSetRenderStyle} onInertia={setInertia} onNormalView={handleNormalView} sketchSupport={sketchSupport} onSketchOnFace={sketchOnPickedFace} onClearSketchSupport={() => { setSketchSupport(null); sketchRef.current?.setProjectedEdges(null); }}
+      <section className="canvas-panel"><ModelViewport onEditSelected={handleEditSelected} onMeasureSelected={handleMeasureSelected} sectionOn={sectionOn} onSectionOn={setSectionOn} display={display} orientation={orientation} selectedFeature={treeSelection === 'Faelyx_Project' ? 'None' : treeSelection} stlData={stlData} generating={generating} stlViewportRef={stlViewportRef} sketchLoops={sketchPreview} previewFrame={currentFrame} previewLabel={currentSupportLabel} referenceGeoms={referenceGeoms} partHidden={partHidden} onToggleHidden={handleToggleHidden} compassMode={compassMode} onSetCompassMode={handleSetCompassMode} onQuickView={handleQuickView} onRotateStep={handleRotateStep} onFitAll={handleFitAll} interactionMode={interactionMode} onSetInteractionMode={handleSetInteractionMode} onSetRenderStyle={handleSetRenderStyle} onInertia={setInertia} onNormalView={handleNormalView} sketchSupport={sketchSupport} onSketchOnFace={sketchOnPickedFace} onClearSketchSupport={() => { setSketchSupport(null); sketchRef.current?.setProjectedEdges(null); }}
         faceButtonEnabled={faceButtonEnabled} faceButtonTitle={faceButtonTitle} pickedFaceStatus={pickedFace?.status ?? null} onFacePicked={handleFacePicked}
         keptSketches={viewSketches} showPlanes={showPlanes} onShowPlanes={setShowPlanes} showAxes={showAxes} onShowAxes={setShowAxes} onPlaneDoubleClick={sketchOnPlane} onSketchDoubleClick={editSketch} edgePickEnabled={edgePickOn} selectedEdges={selectedEdges} onEdgePicked={handleEdgePicked} onSketchPicked={pickSketch3D} onReferencePlaneDoubleClick={sketchOnReferencePlane} onBoxSelect={boxSelect3D} pickHint={pickHint} refCreate={refCreate} refPickEnabled={refPickOn || !!planeField} onRefSourcePicked={onRefSourcePicked} onRefDistanceEdit={onRefDistanceEdit} onRefFlip={onRefFlip} onRefDelta={onRefDelta} snapPickEnabled={snapPickOn} linePreview={linePreview} onSnapPicked={onSnapPicked} selectedRefIds={selectedRefIds} onRefPicked={onRefPicked} selectFilter={selectFilter} onSelectFilter={setSelectFilter} selectionCount={multiSel.length} onReset={resetModel3D} modelItemCount={bodies.filter((b) => b.id !== 'PartBody').length + meshBodies.length + keptSketches.length + features.length + modifiers.length + booleans.length + referenceGeoms.length} /></section>
       <div className={`col-resizer ${resizingCol === 'col4' ? 'col-resizer-active' : ''}`} onMouseDown={startColResize('col4')} aria-hidden="true" />
-      <aside className="inspector-panel"><PanelHeader eyebrow="FAELYX INTELLIGENCE" title="ENGINEERING INSPECTOR" action={<PanelRight size={14} />} /><div className="inspector-tabs">{[['AI ASSISTANT', Sparkles], ['INSPECT', Inspect], ['PROPERTIES', Settings2]].map(([label, Icon]) => <button key={label as string} className={inspectorTab === label ? 'tab-active' : ''} onClick={() => setInspectorTab(label as string)}><Icon size={12} />{label as string}</button>)}</div>{inspectorTab === 'AI ASSISTANT' && <div className="assistant-content"><div className="copilot-head"><div className="copilot-mark"><Sparkles size={16} /></div><div><strong>Faelyx AI</strong><span>Engineering Copilot <b><span className="status-dot" /> Ready</b></span></div><MoreDots /></div><div className="assistant-intro"><div className="eyebrow"><BrainCircuit size={11} /> ENGINEERING COPILOT</div><p>Tell me what you want to design or analyze. I can work with materials, constraints, and manufacturing intent.</p></div><div className="suggested-label">SUGGESTED WORKFLOWS</div>{['Create a mounting bracket', 'Reduce this part’s weight', 'Check this design for stress', 'Suggest a better material', 'Prepare this part for CNC machining', 'Find possible manufacturing issues'].map((item) => <button className="suggestion" key={item} onClick={() => setAiInput(item)}><Zap size={11} />{item}<ArrowDownToLine size={11} /></button>)}{aiMessages.map((message, index) => <div className="ai-message" key={`${message}-${index}`}><span>You</span>{message}</div>)}{processing && <div className="ai-processing"><Sparkles size={13} /><div><strong>FAELYX AI &nbsp; Analyzing...</strong><span>Feature strategy · Geometry · Validation</span></div></div>}<div className="ai-spacer" /><div className="reference-card"><div><ImagePlus size={15} /><span><strong>Image-to-CAD</strong><small>JPG, PNG or WEBP reference</small></span></div><label><Upload size={13} /> Upload<input type="file" accept="image/png,image/jpeg,image/webp" onChange={upload} /></label></div>{uploadReady && <div className="upload-success"><Check size={13} /> Image ready for geometry recognition <X size={12} onClick={() => setUploadReady(false)} /></div>}<div className="ai-composer"><textarea value={aiInput} onChange={(event) => setAiInput(event.target.value)} onKeyDown={(event) => { if (event.key === 'Enter' && !event.shiftKey) { event.preventDefault(); runAi(); } }} placeholder="Describe your engineering task..." /><div className="composer-actions"><button aria-label="Attach"><Paperclip size={14} /></button><button aria-label="Microphone"><CircleDot size={14} /></button><button className="send-button" onClick={runAi} aria-label="Send"><Send size={14} /></button></div></div><span className="composer-hint">Shift + Enter for new line</span></div>}{inspectorTab === 'INSPECT' && <InspectPanel selected={treeSelection} materialLabel={material.label} />}{inspectorTab === 'PROPERTIES' && TOOLS[activeTool] && (() => {
+      <aside className="inspector-panel"><PanelHeader eyebrow="FAELYX INTELLIGENCE" title="ENGINEERING INSPECTOR" action={<PanelRight size={14} />} /><div className="inspector-tabs">{[['AI ASSISTANT', Sparkles], ['INSPECT', Inspect], ['PROPERTIES', Settings2]].map(([label, Icon]) => <button key={label as string} className={inspectorTab === label ? 'tab-active' : ''} onClick={() => setInspectorTab(label as string)}><Icon size={12} />{label as string}</button>)}</div>{inspectorTab === 'AI ASSISTANT' && <div className="assistant-content"><div className="copilot-head"><div className="copilot-mark"><Sparkles size={16} /></div><div><strong>Faelyx AI</strong><span>Engineering Copilot <b><span className="status-dot" /> Ready</b></span></div><MoreDots /></div><div className="assistant-intro"><div className="eyebrow"><BrainCircuit size={11} /> ENGINEERING COPILOT</div><p>Tell me what you want to design or analyze. I can work with materials, constraints, and manufacturing intent.</p></div><div className="suggested-label">TRY A WORKING EXAMPLE</div>{['Spur gear 20 teeth, module 2, 10mm thick, 15mm bore', 'Helical gear 20 teeth, module 2, 10mm thick, 15 degree helix angle, 15mm bore', 'Bevel gear 20 teeth, module 2, 10mm thick, 8mm bore', '50mm cube with 10mm through hole', 'Mounting plate 80x60x10 with 4 M4 holes on a 60x40 pattern', 'Washer 40mm OD, 20mm ID, 5mm thick'].map((item) => <button className="suggestion" key={item} onClick={() => setAiInput(item)}><Zap size={11} />{item}<ArrowDownToLine size={11} /></button>)}{aiMessages.map((message, index) => { const isAI = message.startsWith('__ai__ '); return (<div className="ai-message" key={`${message}-${index}`}><span>{isAI ? 'AI' : 'You'}</span>{isAI ? message.slice(7) : message}</div>); })}{processing && <div className="ai-processing"><Sparkles size={13} /><div><strong>FAELYX AI &nbsp; Analyzing...</strong><span>Feature strategy · Geometry · Validation</span></div></div>}<div className="ai-spacer" /><div className="reference-card"><div><ImagePlus size={15} /><span><strong>Image-to-CAD</strong><small>JPG, PNG or WEBP reference</small></span></div><label><Upload size={13} /> Upload<input type="file" accept="image/png,image/jpeg,image/webp" onChange={upload} /></label></div>{uploadReady && <div className="upload-success"><Check size={13} /> Image ready for geometry recognition <X size={12} onClick={() => setUploadReady(false)} /></div>}<div className="ai-composer"><textarea value={aiInput} onChange={(event) => setAiInput(event.target.value)} onKeyDown={(event) => { if (event.key === 'Enter' && !event.shiftKey) { event.preventDefault(); runAi(); } }} placeholder="Describe your engineering task..." /><div className="composer-actions"><button aria-label="Attach"><Paperclip size={14} /></button><button aria-label="Microphone"><CircleDot size={14} /></button><button className="send-button" onClick={runAi} aria-label="Send"><Send size={14} /></button></div></div><span className="composer-hint">Shift + Enter for new line</span></div>}{inspectorTab === 'INSPECT' && <InspectPanel selected={treeSelection} materialLabel={material.label} />}{inspectorTab === 'PROPERTIES' && TOOLS[activeTool] && (() => {
         const editingItem = [...features, ...modifiers].find((x) => x.id === editingId);
         // A kept sketch as a support choice: the three planes, the
         // reference planes, and what it is on now if that is neither.
