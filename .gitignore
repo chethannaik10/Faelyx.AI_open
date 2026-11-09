@@ -45,3 +45,9 @@ ai-engine/cad-server/hunyuan3d_runtime/
 .venv
 **/.env
 **/.venv
+.env
+**/.env
+.venv
+**/.venv
+chroma_db/
+ai-engine/ai-server/chroma_db/
